@@ -38,7 +38,7 @@ class Migration(migrations.Migration):
                 ('active', models.BooleanField(default=True, help_text='Inactive devices will not be sent notifications', verbose_name='Is active')),
                 ('date_created', models.DateTimeField(auto_now_add=True, verbose_name='Creation date', null=True)),
                 ('device_id', push_notifications.fields.HexIntegerField(help_text=b'ANDROID_ID / TelephonyManager.getDeviceId() (always as hex)', null=True, verbose_name='Device ID', blank=True)),
-                ('registration_id', models.TextField(verbose_name='Registration ID')),
+                ('registration_id', models.TextField(unique=True, max_length=256, verbose_name='Registration ID')),
                 ('user', models.ForeignKey(blank=True, to=settings.AUTH_USER_MODEL, null=True)),
             ],
             options={

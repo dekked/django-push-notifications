@@ -99,7 +99,7 @@ class Migration(SchemaMigration):
 			"device_id": ("push_notifications.fields.HexIntegerField", [], {"null": "True", "blank": "True"}),
 			"id": ("django.db.models.fields.AutoField", [], {"primary_key": "True"}),
 			"name": ("django.db.models.fields.CharField", [], {"max_length": "255", "null": "True", "blank": "True"}),
-			"registration_id": ("django.db.models.fields.TextField", [], {}),
+			"registration_id": ("django.db.models.fields.TextField", [], {"unique": "True", "max_length": "256"}),
 			"user": ("django.db.models.fields.related.ForeignKey", [],
 				{"to": u"orm['%s.%s']" % (User._meta.app_label, User._meta.object_name), "null": "True", "blank": "True"})
 		}
