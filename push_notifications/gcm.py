@@ -44,23 +44,10 @@ def _gcm_send(data, content_type):
 	}
 
 	request = Request(SETTINGS["GCM_POST_URL"], data, headers)
-	response = urlopen(request)
-	result = response.read().decode("utf-8")
-
-	# FIXME: this may or may not still be broken for bulk results
-	try:
-		result = json.loads(result)
-	except ValueError:
-		if result.startswith("Error="):
-			raise GCMError(result)
-	else:
-		if result['failure']:
-			raise GCMError(result)
-
-	return result
+	return urlopen(request).read()
 
 
-def _gcm_send_plain(registration_id, data, collapse_key=None, delay_while_idle=False):
+def _gcm_send_plain(registration_id, data, collapse_key=None, delay_while_idle=False, time_to_live=0):
 	"""
 	Sends a GCM notification to a single registration_id.
 	This will send the notification as form data.
@@ -73,14 +60,24 @@ def _gcm_send_plain(registration_id, data, collapse_key=None, delay_while_idle=F
 	if collapse_key:
 		values["collapse_key"] = collapse_key
 
+	if delay_while_idle:
+		values["delay_while_idle"] = int(delay_while_idle)
+
+	if time_to_live:
+		values["time_to_live"] = time_to_live
+
 	for k, v in data.items():
 		values["data.%s" % (k)] = v.encode("utf-8")
 
-	data = urlencode(values).encode("utf-8")
-	return _gcm_send(data, "application/x-www-form-urlencoded;charset=UTF-8")
+	data = urlencode(sorted(values.items())).encode("utf-8")  # sorted items for tests
+
+	result = _gcm_send(data, "application/x-www-form-urlencoded;charset=UTF-8")
+	if result.startswith("Error="):
+		raise GCMError(result)
+	return result
 
 
-def _gcm_send_json(registration_ids, data, collapse_key=None, delay_while_idle=False):
+def _gcm_send_json(registration_ids, data, collapse_key=None, delay_while_idle=False, time_to_live=0):
 	"""
 	Sends a GCM notification to one or more registration_ids. The registration_ids
 	needs to be a list.
@@ -98,11 +95,18 @@ def _gcm_send_json(registration_ids, data, collapse_key=None, delay_while_idle=F
 	if delay_while_idle:
 		values["delay_while_idle"] = delay_while_idle
 
-	data = json.dumps(values, separators=(",", ":")).encode("utf-8")
-	return _gcm_send(data, "application/json")
+	if time_to_live:
+		values["time_to_live"] = time_to_live
+
+	data = json.dumps(values, separators=(",", ":"), sort_keys=True).encode("utf-8")  # keys sorted for tests
+
+	result = json.loads(_gcm_send(data, "application/json"))
+	if result["failure"]:
+		raise GCMError(result)
+	return result
 
 
-def gcm_send_message(registration_id, data, collapse_key=None, delay_while_idle=False):
+def gcm_send_message(registration_id, data, collapse_key=None, delay_while_idle=False, time_to_live=0):
 	"""
 	Sends a GCM notification to a single registration_id.
 
@@ -113,7 +117,7 @@ def gcm_send_message(registration_id, data, collapse_key=None, delay_while_idle=
 	gcm_send_bulk_message() with a list of registration_ids
 	"""
 
-	args = data, collapse_key, delay_while_idle
+	args = data, collapse_key, delay_while_idle, time_to_live
 
 	try:
 		_gcm_send_plain(registration_id, *args)
@@ -121,14 +125,14 @@ def gcm_send_message(registration_id, data, collapse_key=None, delay_while_idle=
 		_gcm_send_json([registration_id], *args)
 
 
-def gcm_send_bulk_message(registration_ids, data, collapse_key=None, delay_while_idle=False):
+def gcm_send_bulk_message(registration_ids, data, collapse_key=None, delay_while_idle=False, time_to_live=0):
 	"""
 	Sends a GCM notification to one or more registration_ids. The registration_ids
 	needs to be a list.
 	This will send the notification as json data.
 	"""
 
-	args = data, collapse_key, delay_while_idle
+	args = data, collapse_key, delay_while_idle, time_to_live
 
 	# GCM only allows up to 1000 reg ids per bulk message
 	# https://developer.android.com/google/gcm/gcm.html#request
@@ -137,6 +141,6 @@ def gcm_send_bulk_message(registration_ids, data, collapse_key=None, delay_while
 		ret = []
 		for chunk in _chunks(registration_ids, max_recipients):
 			ret.append(_gcm_send_json(chunk, *args))
-		return "\n".join(ret)
+		return ret
 
 	return _gcm_send_json(registration_ids, *args)
