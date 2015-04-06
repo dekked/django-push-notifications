@@ -23,11 +23,12 @@ single messages.
 Dependencies
 ------------
 All versions of Django 1.0 and newer should be supported, however no guarantees are made for versions older than 1.4.
-The app also depends on django-uuidfield.
 
 Tastypie support should work on Tastypie 0.9.11 and newer.
 
 Django versions older than 1.5 require 'six' to be installed.
+Django versions older than 1.7 require 'south' to be installed.
+Django versions older than 1.8 require 'django-uuidfield' to be installed.
 
 
 Setup
@@ -48,6 +49,16 @@ Edit your settings.py file::
 		"GCM_API_KEY": "<your api key>",
 		"APNS_CERTIFICATE": "/path/to/your/certificate.pem",
 	}
+
+Note: If you are planning on running your project with `DEBUG=True`, then make sure you have set the
+*development* certificate as your `APNS_CERTIFICATE`. Otherwise the app will not be able to connect to the correct host.
+
+You can learn more about APNS certificates here: https://developer.apple.com/library/ios/documentation/NetworkingInternet/Conceptual/RemoteNotificationsPG/Chapters/ProvisioningDevelopment.html
+
+Native Django migrations are supported on Django 1.7 and beyond. The app will automatically
+fall back to South on older versions, however you will also need the following setting::
+
+	SOUTH_MIGRATION_MODULES = {"push_notifications": "push_notifications.south_migrations"}
 
 
 Settings list
@@ -100,7 +111,7 @@ Sending messages in bulk
 	from push_notifications.models import APNSDevice, GCMDevice
 
 	devices = GCMDevice.objects.filter(user__first_name="James")
-	devices.send_message({"message": "Happy name day!"})
+	devices.send_message("Happy name day!")
 
 Sending messages in bulk makes use of the bulk mechanics offered by GCM and APNS. It is almost always preferable to send
 bulk notifications instead of single ones.
@@ -153,7 +164,4 @@ When registered, the APIs will show up at <api_root>/device/apns and <api_root>/
 Python 3 support
 ----------------
 
-django-push-notifications has been tested on Python 3 and should work. However, the django-uuidfield dependency does not
-officially support Python 3. A pull request is pending and can be used for the time being::
-
-	pip install -e git://github.com/dominicrodger/django-uuidfield.git@python3#egg=django_uuidfield
+django-push-notifications is compatible with Python 3. Django 1.8 or higher is recommended.
